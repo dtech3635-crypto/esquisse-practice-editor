@@ -82,6 +82,6 @@ function toast(s){const e=$('#toast');e.textContent=s;e.classList.add('show');se
 rooms.onclick=e=>{if(e.target.matches('input'))return;const row=e.target.closest('.room-row');if(row){selectedType=row.dataset.id;renderRooms()}};rooms.onchange=e=>{const t=types.find(x=>x.id===e.target.dataset.count);if(t){t.count=+e.target.value;updateSummary()}};
 $('#areas').onchange=renderFloors;
 $('#undo').onclick=()=>{if(!history.length)return toast('戻せる操作がありません');state=JSON.parse(history.pop());persist();renderFloors();renderSelection()};$('#clear').onclick=()=>{if(confirm('配置した部屋をすべて消しますか？')){snap();state.pieces=[];selectedPiece=null;persist();renderFloors();renderSelection()}};
-$('#all-clear').onclick=()=>{if(!confirm('配置・グリッドをすべて初期状態に戻しますか？'))return;state={version:4,rows:4,cols:6,rowSpan:6,colSpan:7,notch:null,pieces:[]};types.forEach(t=>t.count=1);history=[];copiedPiece=null;selectedPiece=null;selectedType='room-single';localStorage.removeItem('esquisse_state');persist();renderRooms();renderFloors();renderSelection();toast('すべて初期状態に戻しました')};
-$('#reset').onclick=()=>{types.forEach(t=>t.count=1);renderRooms();updateSummary()};
+$('#all-clear').onclick=()=>{if(!confirm('配置・グリッドをすべて初期状態に戻しますか？'))return;state={version:4,rows:4,cols:6,rowSpan:6,colSpan:7,notch:null,pieces:[]};syncRoomCounts();history=[];copiedPiece=null;selectedPiece=null;selectedType='room-single';localStorage.removeItem('esquisse_state');persist();renderRooms();renderFloors();renderSelection();toast('すべて初期状態に戻しました')};
+$('#reset').onclick=()=>{syncRoomCounts();renderRooms();updateSummary()};
 $('#save').onclick=()=>{window.print();toast('印刷画面からPDF・画像として保存できます')};renderRooms();renderFloors();renderSelection();
