@@ -21,7 +21,7 @@ const types=[
  {id:'room-suite',name:'スイート',sub:'2～4人用',color:'#9c2f58',w:9.5,h:7,unit:true,count:1}
 ];
 const floorDefs=[['standard','基準階']]; let selectedType='room-single', selectedPiece=null, history=[], selectedRotated=false;
-const ROOM_DEPTH=7,MIN_CORRIDOR_GAP=2.5,DEFAULT_COL_SPANS=[7,7,7,7,7,7],DEFAULT_ROW_SPANS=[7,4,7];
+const DEFAULT_COL_SPANS=[7,7,7,7,7,7],DEFAULT_ROW_SPANS=[6,6,6,6];
 let state=JSON.parse(localStorage.getItem('esquisse_state')||'null')||null;
 if(!state||state.version!==5)state={version:5,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],notch:null,pieces:[]};
 state.colSpans=state.colSpans?.length?state.colSpans:[...DEFAULT_COL_SPANS];
@@ -33,8 +33,6 @@ const sumSpans=a=>a.reduce((n,v)=>n+v,0);
 const spanLines=spans=>spans.reduce((out,s)=>(out.push(out[out.length-1]+s),out),[0]);
 const gridW=()=>sumSpans(state.colSpans),gridH=()=>sumSpans(state.rowSpans);
 const colLines=()=>spanLines(state.colSpans),rowLines=()=>spanLines(state.rowSpans);
-// 客室奥行7mを1スパンとし、廊下・コア帯を別スパンにすることで梁・柱が客室内を貫かない構造割りにする（総奥行は変えない）
-function bandRowSpans(totalDepth){const bands=Math.max(2,Math.floor((totalDepth+MIN_CORRIDOR_GAP)/(ROOM_DEPTH+MIN_CORRIDOR_GAP))),gap=Math.max(MIN_CORRIDOR_GAP,Math.round((totalDepth-ROOM_DEPTH*bands)/(bands-1)*2)/2),spans=[];for(let i=0;i<bands;i++){if(i)spans.push(gap);spans.push(ROOM_DEPTH)}return spans}
 const typeSize=t=>({w:t.w,h:t.h});
 function snap(){history.push(JSON.stringify(state));if(history.length>30)history.shift()}
 function persist(){localStorage.setItem('esquisse_state',JSON.stringify(state))}
