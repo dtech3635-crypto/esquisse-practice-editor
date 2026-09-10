@@ -1,0 +1,10 @@
+{
+  "name": "esquisse-practice-editor",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "node --check app.js && node --check learning.js && node --check staging.js && node --check server.mjs"
+  }
+}
