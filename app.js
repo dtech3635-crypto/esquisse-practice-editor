@@ -105,6 +105,30 @@ function deletePiece(id){const p=state.pieces.find(v=>v.id===id);if(!p)return;sn
 function pastePiece(floor,x,y){if(!copiedPiece)return;const t=types.find(v=>v.id===copiedPiece.type);selectedType=copiedPiece.type;const base=snapToGrid(x,y,copiedPiece.w,copiedPiece.h);let pos=base;if(!isDraftingType(t.id)){const st=snapToStructure(base.x,base.y,copiedPiece.w,copiedPiece.h);if(canPlace(floor,st.x,st.y,copiedPiece.w,copiedPiece.h,[],t.id))pos=st;const snapped=snapToNeighbors(floor,pos.x,pos.y,copiedPiece.w,copiedPiece.h,[]);if(canPlace(floor,snapped.x,snapped.y,copiedPiece.w,copiedPiece.h,[],t.id))pos=snapped}if(!canPlace(floor,pos.x,pos.y,copiedPiece.w,copiedPiece.h,[],t.id))return toast('ここには貼り付けできません');snap();const created={...copiedPiece,id:crypto.randomUUID(),groupId:null,floor,x:pos.x,y:pos.y};state.pieces.push(created);selectedPiece=created.id;persist();renderFloors();renderSelection();toast('貼り付けました')}
 function showContextMenu(clientX,clientY,id,floor,x,y){const menu=$('#context-menu');menu.innerHTML=id?'<button data-action="copy">コピー</button><button data-action="delete">削除</button>':copiedPiece?'<button data-action="paste">貼り付け</button>':'<span>コピーした要素がありません</span>';menu.hidden=false;menu.style.left=clientX+'px';menu.style.top=clientY+'px';menu.onclick=e=>{const action=e.target.dataset.action;if(action==='copy'){const p=state.pieces.find(v=>v.id===id);copiedPiece=p?{...p,groupId:null}:null;toast('コピーしました')}if(action==='delete')deletePiece(id);if(action==='paste')pastePiece(floor,x,y);menu.hidden=true}}
 document.addEventListener('mousedown',e=>{const m=$('#context-menu');if(!m.contains(e.target))m.hidden=true});
+function closeSizeEditor(){const box=$('#size-editor');box.hidden=true;box.innerHTML=''}
+function openSizeEditor(p,clientX,clientY){const box=$('#size-editor'),t=types.find(v=>v.id===p.type);
+ box.innerHTML=`<label>幅（m）<input id="size-w" type="number" min="0.5" step="0.5" value="${p.w}"></label><label>奥行（m）<input id="size-h" type="number" min="0.5" step="0.5" value="${p.h}"></label><button id="size-apply">変更</button>`;
+ box.hidden=false;box.style.left=Math.min(clientX,innerWidth-230)+'px';box.style.top=Math.min(clientY,innerHeight-90)+'px';
+ const half=v=>Math.max(.5,Math.round(v*2)/2);
+ const apply=()=>{const w=half(+$('#size-w').value),h=half(+$('#size-h').value);
+  if(!Number.isFinite(w)||!Number.isFinite(h))return closeSizeEditor();
+  if(!canPlace(p.floor,p.x,p.y,w,h,[p.id],p.type))return toast(isColumnGridType(p.type)&&!fitsWithinBay(p.x,p.y,w,h)?'柱・梁をまたぐ寸法にはできません':'その寸法では建物からはみ出すか他の室と重なります');
+  snap();p.w=w;p.h=h;persist();renderFloors();renderSelection();closeSizeEditor();toast(`${t.name}を${w}×${h}m（${Math.round(w*h*100)/100}㎡）にしました`)};
+ $('#size-apply').onclick=apply;
+ box.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();apply()}else if(e.key==='Escape')closeSizeEditor()};
+ const first=$('#size-w');first.focus();first.select()}
+function pieceAtPoint(clientX,clientY){const g=[...document.querySelectorAll('.grid')].find(el=>{const r=el.getBoundingClientRect();return clientX>=r.left&&clientX<=r.right&&clientY>=r.top&&clientY<=r.bottom});if(!g)return null;const rect=g.getBoundingClientRect(),x=(clientX-rect.left)/rect.width*gridW(),y=(clientY-rect.top)/rect.height*gridH();return[...state.pieces].reverse().find(v=>v.floor===g.dataset.grid&&!isFreeLine(v.type)&&x>=v.x&&x<=v.x+v.w&&y>=v.y&&y<=v.y+v.h)||null}
+// 1回目のクリックで盤面を描き直すため dblclick は届かない。mousedown を捕捉段階で拾って二度押しを判定する
+let lastPieceClick={id:null,at:0};
+document.addEventListener('mousedown',e=>{
+ const box=$('#size-editor');if(!box.hidden&&!box.contains(e.target))closeSizeEditor();
+ if(e.button!==0||e.target.closest('.resize-handle'))return;
+ const p=pieceAtPoint(e.clientX,e.clientY);
+ if(!p){lastPieceClick={id:null,at:0};return}
+ const now=Date.now();
+ if(lastPieceClick.id===p.id&&now-lastPieceClick.at<400){lastPieceClick={id:null,at:0};e.preventDefault();e.stopImmediatePropagation();selectedPiece=p.id;renderFloors();renderSelection();openSizeEditor(p,e.clientX,e.clientY);return}
+ lastPieceClick={id:p.id,at:now}
+},true);
 function renderSelection(){const p=state.pieces.find(x=>x.id===selectedPiece),box=$('#selection');if(!p){box.className='empty';box.textContent='要素を選択してください';return}const t=types.find(x=>x.id===p.type),parts=linked(p),ids=parts.map(v=>v.id),draft=isDraftingType(p.type),detail=draft?`${p.w}m × ${p.h}m`:`${p.w}m × ${p.h}m・${p.w*p.h}㎡`;box.className='selection-card';box.innerHTML=`<b><span style="color:${t.color}">■</span> ${t.name}</b><span>${detail}</span><button id="rotate">↻ 90°回転</button><button id="remove">選択した要素を削除</button>`;$('#rotate').onclick=()=>{if(parts.every(v=>canPlace(v.floor,v.x,v.y,v.h,v.w,ids,v.type))){snap();parts.forEach(v=>{[v.w,v.h]=[v.h,v.w];v.rotated=!v.rotated});persist();renderFloors();renderSelection()}else toast('回転する余白がありません')};$('#remove').onclick=()=>{snap();state.pieces=state.pieces.filter(x=>!ids.includes(x.id));selectedPiece=null;persist();renderFloors();renderSelection()}}
 const renderSelectionRotatableBase=renderSelection;
 renderSelection=function(){renderSelectionRotatableBase();const p=state.pieces.find(x=>x.id===selectedPiece);if(!p||!isFreeLine(p.type))return;const box=$('#selection'),angle=((p.angle??0)%360+360)%360,label=document.createElement('label');label.innerHTML=`線の角度（°）<input id="line-angle" type="range" min="0" max="359" step="1" value="${angle}"><input id="line-angle-number" type="number" min="0" max="359" step="1" value="${angle}">`;box.insertBefore(label,$('#rotate'));const setAngle=(value,refresh=true)=>{p.angle=((Math.round(value)%360)+360)%360;persist();renderFloors();if(refresh)renderSelection()};$('#line-angle').oninput=e=>{setAngle(+e.target.value,false);$('#line-angle-number').value=e.target.value};$('#line-angle-number').onchange=e=>setAngle(+e.target.value);$('#rotate').textContent='↻ 45°回転';$('#rotate').onclick=()=>{snap();setAngle(angle+45)}};

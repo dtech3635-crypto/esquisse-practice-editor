@@ -123,25 +123,25 @@ function learningCenter(p){return{x:p.x+p.w/2,y:p.y+p.h/2}}
 function learningDistance(a,b){const ac=learningCenter(a),bc=learningCenter(b);return Math.abs(ac.x-bc.x)+Math.abs(ac.y-bc.y)}
 function placedFor(floor,type){return state.pieces.filter(p=>p.floor===floor&&p.type===type)}
 function reqStatus(req){const found=placedFor(req.floor,req.type),valid=found.filter(p=>p.w*p.h+0.01>=req.area);return{found,valid,ok:valid.length>=req.count,area:found.reduce((n,p)=>n+p.w*p.h,0)}}
-const CORRIDOR_CELL=0.5,MIN_CORRIDOR_WIDTH=2.5,PS_MAX_WIDTH=1;
+const CORRIDOR_CELL=0.5,MIN_CORRIDOR_WIDTH=2.5;
 function buildCorridorAnalysis(floor){
  const totalW=gridW(),totalH=gridH(),cols=Math.round(totalW/CORRIDOR_CELL),rows=Math.round(totalH/CORRIDOR_CELL),n=notchRect(),pieces=state.pieces.filter(p=>p.floor===floor&&!isDraftingType(p.type)),free=Array.from({length:rows},()=>new Array(cols).fill(true));
  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const cx=(c+.5)*CORRIDOR_CELL,cy=(r+.5)*CORRIDOR_CELL;if(n&&cx>n.x&&cx<n.x+n.w&&cy>n.y&&cy<n.y+n.h){free[r][c]=false;continue}for(const p of pieces)if(cx>p.x&&cx<p.x+p.w&&cy>p.y&&cy<p.y+p.h){free[r][c]=false;break}}
  const left=Array.from({length:rows},()=>new Array(cols).fill(0)),right=Array.from({length:rows},()=>new Array(cols).fill(0)),up=Array.from({length:rows},()=>new Array(cols).fill(0)),down=Array.from({length:rows},()=>new Array(cols).fill(0));
  for(let r=0;r<rows;r++){for(let c=0;c<cols;c++)left[r][c]=free[r][c]?(c>0&&free[r][c-1]?left[r][c-1]+1:1):0;for(let c=cols-1;c>=0;c--)right[r][c]=free[r][c]?(c<cols-1&&free[r][c+1]?right[r][c+1]+1:1):0}
  for(let c=0;c<cols;c++){for(let r=0;r<rows;r++)up[r][c]=free[r][c]?(r>0&&free[r-1][c]?up[r-1][c]+1:1):0;for(let r=rows-1;r>=0;r--)down[r][c]=free[r][c]?(r<rows-1&&free[r+1][c]?down[r+1][c]+1:1):0}
- const valid=Array.from({length:rows},()=>new Array(cols).fill(false));let narrowCount=0;
- for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){if(!free[r][c])continue;const hSpan=(left[r][c]+right[r][c]-1)*CORRIDOR_CELL,vSpan=(up[r][c]+down[r][c]-1)*CORRIDOR_CELL,w=Math.min(hSpan,vSpan);if(w>=MIN_CORRIDOR_WIDTH)valid[r][c]=true;else if(w>PS_MAX_WIDTH)narrowCount++}
- return{rows,cols,valid,narrowCount}
+ const valid=Array.from({length:rows},()=>new Array(cols).fill(false));
+ for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){if(!free[r][c])continue;const hSpan=(left[r][c]+right[r][c]-1)*CORRIDOR_CELL,vSpan=(up[r][c]+down[r][c]-1)*CORRIDOR_CELL,w=Math.min(hSpan,vSpan);if(w>=MIN_CORRIDOR_WIDTH)valid[r][c]=true}
+ return{rows,cols,valid}
 }
 function touchingValidCells(analysis,p){const{valid,rows,cols}=analysis,cells=[],x0=Math.round(p.x/CORRIDOR_CELL),y0=Math.round(p.y/CORRIDOR_CELL),x1=Math.round((p.x+p.w)/CORRIDOR_CELL),y1=Math.round((p.y+p.h)/CORRIDOR_CELL);for(let c=Math.max(0,x0);c<Math.min(cols,x1);c++){if(y0-1>=0&&valid[y0-1][c])cells.push(y0-1+','+c);if(y1<rows&&valid[y1][c])cells.push(y1+','+c)}for(let r=Math.max(0,y0);r<Math.min(rows,y1);r++){if(x0-1>=0&&valid[r][x0-1])cells.push(r+','+(x0-1));if(x1<cols&&valid[r][x1])cells.push(r+','+x1)}return cells}
 function corridorBfsDistance(analysis,startKeys,targetSet){const{valid,rows,cols}=analysis;if(!startKeys.length)return Infinity;const dist=new Map(),queue=[];for(const key of startKeys)if(!dist.has(key)){dist.set(key,0);queue.push(key)}let qi=0;while(qi<queue.length){const key=queue[qi++],d=dist.get(key);if(targetSet.has(key))return d*CORRIDOR_CELL;const[r,c]=key.split(',').map(Number);for(const[nr,nc]of[[r-1,c],[r+1,c],[r,c-1],[r,c+1]]){if(nr<0||nr>=rows||nc<0||nc>=cols||!valid[nr][nc])continue;const nk=nr+','+nc;if(!dist.has(nk)){dist.set(nk,d+1);queue.push(nk)}}}return Infinity}
 function gradeLearningPlan(){
  const feedback=[],categories={program:45,circulation:30,evacuation:25};
  const failedReq=activeChallenge.requirements.filter(r=>!reqStatus(r).ok);categories.program=Math.max(0,45-failedReq.length*4);failedReq.forEach(r=>feedback.push({level:'bad',text:`${learningFloorNames[r.floor]}：${learningTypeName(r.type)} ${r.count}室・各${r.area}㎡以上が不足しています。`}));if(!failedReq.length)feedback.push({level:'good',text:'要求室の個数と最低面積を満たしています。'});
- let noCorridor=0,routeFailures=0,maxRoute=0,stairProblem=0,narrowTotal=0;
+ let noCorridor=0,routeFailures=0,maxRoute=0,stairProblem=0;
  for(const [floor] of floorDefs){
-  const analysis=buildCorridorAnalysis(floor);narrowTotal+=analysis.narrowCount;
+  const analysis=buildCorridorAnalysis(floor);
   const pieces=state.pieces.filter(p=>p.floor===floor&&!isDraftingType(p.type)),rooms=pieces.filter(p=>types.find(t=>t.id===p.type)?.unit),stairs=pieces.filter(p=>p.type.startsWith('stairs'));
   const roomTouch=rooms.map(room=>({room,cells:touchingValidCells(analysis,room)}));
   roomTouch.forEach(rt=>{if(!rt.cells.length)noCorridor++});
@@ -151,7 +151,6 @@ function gradeLearningPlan(){
   for(const rt of roomTouch){if(!rt.cells.length)continue;const routes=stairTargets.map(target=>corridorBfsDistance(analysis,rt.cells,target));if(routes.filter(Number.isFinite).length<2)routeFailures++;const best=Math.min(...routes);if(Number.isFinite(best))maxRoute=Math.max(maxRoute,best)}
  }
  if(noCorridor){categories.circulation=Math.max(0,30-Math.min(30,noCorridor*3));feedback.push({level:'bad',text:`廊下（空白部分）に接していない要求室が${noCorridor}室あります。部屋の間に幅2.5mを超える空間を確保してください。`})}else feedback.push({level:'good',text:'各要求室は廊下（空白部分）に接続しています。'});
- if(narrowTotal){categories.circulation=0;feedback.push({level:'bad',text:`廊下幅が${PS_MAX_WIDTH}mを超え${MIN_CORRIDOR_WIDTH}m未満の箇所があります。この案は成立しません（アウト）。${PS_MAX_WIDTH}m以下の隙間はPS等として扱うため、詰めるか${MIN_CORRIDOR_WIDTH}m以上空けてください。`})}
  if(routeFailures||stairProblem){categories.evacuation=Math.max(0,25-routeFailures*3-stairProblem*5);if(routeFailures)feedback.push({level:'bad',text:`2つの階段へ到達できない室が${routeFailures}室あります。廊下（空白部分）を両階段まで連続させてください。`})}else feedback.push({level:'good',text:`二方向避難経路を確認しました。推定最大歩行距離は約${maxRoute.toFixed(1)}mです。`});
  if(maxRoute>60){categories.evacuation=Math.max(0,categories.evacuation-6);feedback.push({level:'warn',text:`推定歩行距離${maxRoute.toFixed(1)}mは60mを超えています。階段位置を再検討してください。`})}
  const total=Object.values(categories).reduce((a,b)=>a+b,0),gross={};floorDefs.forEach(([f])=>gross[f]=state.pieces.filter(p=>p.floor===f&&!isDraftingType(p.type)).reduce((n,p)=>n+p.w*p.h,0));return{total,categories,feedback,maxRoute,gross,failedReq,at:new Date().toLocaleString('ja-JP')}
