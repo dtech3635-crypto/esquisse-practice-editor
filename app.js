@@ -23,7 +23,9 @@ const types=[
 const floorDefs=[['standard','基準階']]; let selectedType='room-single', selectedPiece=null, history=[], selectedRotated=false;
 const DEFAULT_COL_SPANS=[7,7,7,7,7,7],DEFAULT_ROW_SPANS=[6,6,6,6];
 let state=JSON.parse(localStorage.getItem('esquisse_state')||'null')||null;
-if(!state||state.version!==5)state={version:5,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],notch:null,pieces:[]};
+// 保存が無い／形式が古い場合は、learning.js 読み込み後に出題中の課題のグリッドを取り込む
+let stateNeedsChallengeGrid=!state||state.version!==5;
+if(stateNeedsChallengeGrid)state={version:5,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],notch:null,pieces:[]};
 state.colSpans=state.colSpans?.length?state.colSpans:[...DEFAULT_COL_SPANS];
 state.rowSpans=state.rowSpans?.length?state.rowSpans:[...DEFAULT_ROW_SPANS];
 state.cols=state.colSpans.length;state.rows=state.rowSpans.length;state.notch=state.notch||null;
@@ -112,6 +114,6 @@ rooms.onclick=e=>{if(e.target.matches('input'))return;const row=e.target.closest
 const orientRotateBtn=$('#orient-rotate');if(orientRotateBtn)orientRotateBtn.onclick=()=>{selectedRotated=!selectedRotated;renderRooms()};rooms.onchange=e=>{const t=types.find(x=>x.id===e.target.dataset.count);if(t){t.count=+e.target.value;updateSummary()}};
 $('#areas').onchange=renderFloors;
 $('#undo').onclick=()=>{if(!history.length)return toast('戻せる操作がありません');state=JSON.parse(history.pop());persist();renderFloors();renderSelection()};$('#clear').onclick=()=>{if(confirm('配置した部屋をすべて消しますか？')){snap();state.pieces=[];selectedPiece=null;persist();renderFloors();renderSelection()}};
-$('#all-clear').onclick=()=>{if(!confirm('配置・グリッドをすべて初期状態に戻しますか？'))return;state={version:5,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],cols:DEFAULT_COL_SPANS.length,rows:DEFAULT_ROW_SPANS.length,notch:null,pieces:[]};syncRoomCounts();history=[];copiedPiece=null;selectedPiece=null;selectedType='room-single';selectedRotated=false;localStorage.removeItem('esquisse_state');persist();renderRooms();renderFloors();renderSelection();toast('すべて初期状態に戻しました')};
+$('#all-clear').onclick=()=>{if(!confirm('配置をすべて消して、出題中の課題の初期状態に戻しますか？'))return;applyChallengeGrid();syncRoomCounts();history=[];copiedPiece=null;selectedPiece=null;selectedRotated=false;renderRooms();renderFloors();renderSelection();toast('課題の初期状態に戻しました')};
 $('#reset').onclick=()=>{syncRoomCounts();renderRooms();updateSummary()};
 $('#save').onclick=()=>{window.print();toast('印刷画面からPDF・画像として保存できます')};renderRooms();renderFloors();renderSelection();
