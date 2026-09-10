@@ -24,8 +24,8 @@ const floorDefs=[['standard','基準階']]; let selectedType='room-single', sele
 const DEFAULT_COL_SPANS=[7,7,7,7,7,7],DEFAULT_ROW_SPANS=[6,6,6,6];
 let state=JSON.parse(localStorage.getItem('esquisse_state')||'null')||null;
 // 保存が無い／形式が古い場合は、learning.js 読み込み後に出題中の課題のグリッドを取り込む
-let stateNeedsChallengeGrid=!state||state.version!==5;
-if(stateNeedsChallengeGrid)state={version:5,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],notch:null,pieces:[]};
+let stateNeedsChallengeGrid=!state||state.version!==6;
+if(stateNeedsChallengeGrid)state={version:6,colSpans:[...DEFAULT_COL_SPANS],rowSpans:[...DEFAULT_ROW_SPANS],notch:null,pieces:[]};
 state.colSpans=state.colSpans?.length?state.colSpans:[...DEFAULT_COL_SPANS];
 state.rowSpans=state.rowSpans?.length?state.rowSpans:[...DEFAULT_ROW_SPANS];
 state.cols=state.colSpans.length;state.rows=state.rowSpans.length;state.notch=state.notch||null;
