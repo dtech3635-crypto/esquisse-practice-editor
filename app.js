@@ -3,8 +3,8 @@ const types=[
  {id:'free-frame',name:'自由枠',sub:'自由配置・伸縮',color:'#d32f2f',w:7,h:3.5,count:1},
  {id:'stairs-code',name:'管理用階段',sub:'5m × 3m',color:'#c65f3e',w:5,h:3,count:1},
  {id:'stairs-access',name:'利用者階段',sub:'7m × 3.5m',color:'#d58445',w:7,h:3.5,count:1},
- {id:'ev-large',name:'EV（管理用）',sub:'5m × 2.5m',color:'#6b536f',w:5,h:2.5,count:1},
- {id:'ev-small',name:'EV（利用者用）',sub:'2m × 2m',color:'#856b8b',w:2,h:2,count:1},
+ {id:'ev-large',name:'EV（利用者用）',sub:'3.5m × 2.5m',color:'#6b536f',w:3.5,h:2.5,count:1},
+ {id:'ev-small',name:'EV（管理用）',sub:'2m × 2m',color:'#856b8b',w:2,h:2,count:1},
  {id:'toilet',name:'共用トイレ',sub:'最小1単位',color:'#345d88',w:7,h:3.5,unit:true,count:1},
  {id:'linen',name:'リネン室',sub:'3.5m × 3m',color:'#7a8f99',w:3.5,h:3,unit:true,count:1},
  {id:'air-cond',name:'空調室',sub:'3m × 2m・約6㎡',color:'#8f9592',w:3,h:2,unit:true,count:1},
@@ -41,6 +41,8 @@ drawPiece=function(p){if(p.type!=='free-frame')return drawPieceFreeLineBase(p);c
 const isFreeLine=id=>id==='free-line';
 const isFreeFrame=id=>id==='free-frame';
 const isDraftingType=id=>isFreeLine(id)||isFreeFrame(id);
+const isColumnGridType=id=>id.startsWith('stairs')||id.startsWith('ev');
+function fitsWithinBay(x,y,w,h){const eps=1e-6,col0=Math.floor(x/state.colSpan+eps),col1=Math.floor((x+w)/state.colSpan-eps),row0=Math.floor(y/state.rowSpan+eps),row1=Math.floor((y+h)/state.rowSpan-eps);return col0===col1&&row0===row1}
 const cornerNames={ne:'北東',nw:'北西',se:'南東',sw:'南西'};
 function notchRect(){if(!state.notch)return null;const totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan,n=state.notch,x=n.corner.includes('e')?totalW-n.w:0,y=n.corner.includes('s')?totalH-n.h:0;return{x,y,w:n.w,h:n.h}}
 function overlapsNotch(x,y,w,h){const n=notchRect();return!!n&&x<n.x+n.w&&x+w>n.x&&y<n.y+n.h&&y+h>n.y}
@@ -48,8 +50,8 @@ const linked=p=>p.groupId?state.pieces.filter(x=>x.groupId===p.groupId):[p];
 function snapEdge(value,size,span,total){const candidates=[];for(let line=0;line<=total+.001;line+=span){candidates.push(line,line-size)}const valid=candidates.filter(v=>v>=0&&v+size<=total+.001);return valid.reduce((best,v)=>Math.abs(v-value)<Math.abs(best-value)?v:best,valid[0]??0)}
 function snapToGrid(x,y,w,h){const totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan,half=n=>Math.round(n*2)/2;return{x:Math.max(0,Math.min(half(x),half(totalW-w))),y:Math.max(0,Math.min(half(y),half(totalH-h)))}}
 function snapToNeighbors(floor,x,y,w,h,ignoreIds){const totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan,threshold=1.2,minOverlap=1;let bestX=null,bestXd=threshold,bestY=null,bestYd=threshold;for(const p of state.pieces){if(p.floor!==floor||ignoreIds.includes(p.id)||isDraftingType(p.type)||isFreeLine(p.type))continue;const overlapY=Math.min(y+h,p.y+p.h)-Math.max(y,p.y);if(overlapY>=minOverlap){let d=Math.abs(x-(p.x+p.w));if(d<bestXd){bestXd=d;bestX=p.x+p.w}d=Math.abs((x+w)-p.x);if(d<bestXd){bestXd=d;bestX=p.x-w}}const overlapX=Math.min(x+w,p.x+p.w)-Math.max(x,p.x);if(overlapX>=minOverlap){let d=Math.abs(y-(p.y+p.h));if(d<bestYd){bestYd=d;bestY=p.y+p.h}d=Math.abs((y+h)-p.y);if(d<bestYd){bestYd=d;bestY=p.y-h}}}if(bestX!==null)x=Math.max(0,Math.min(bestX,totalW-w));if(bestY!==null)y=Math.max(0,Math.min(bestY,totalH-h));return{x,y}}
-function canPlace(f,x,y,w,h,ignore=[],movingType=''){const ids=Array.isArray(ignore)?ignore:[ignore],totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan;if(isFreeLine(movingType))return x>=-totalW&&y>=-totalH&&x+w<=totalW*2&&y+h<=totalH*2;return x>=0&&y>=0&&x+w<=totalW&&y+h<=totalH&&!overlapsNotch(x,y,w,h)&&!state.pieces.some(p=>p.floor===f&&!ids.includes(p.id)&&!isDraftingType(p.type)&&!isFreeLine(p.type)&&x<p.x+p.w&&x+w>p.x&&y<p.y+p.h&&y+h>p.y)}
-function place(f,x,y){const t=types.find(v=>v.id===selectedType),d=typeSize(t),w=d.w,h=d.h,base=snapToGrid(x,y,w,h);let pos=base;if(!isDraftingType(t.id)){const snapped=snapToNeighbors(f,base.x,base.y,w,h,[]);if(canPlace(f,snapped.x,snapped.y,w,h,[],t.id))pos=snapped}x=pos.x;y=pos.y;if(!canPlace(f,x,y,w,h,[],t.id)){toast('ここには配置できません');return}snap();const created={id:crypto.randomUUID(),groupId:null,type:t.id,floor:f,x,y,w,h,rotated:false};state.pieces.push(created);selectedPiece=created.id;persist();renderFloors();renderSelection()}
+function canPlace(f,x,y,w,h,ignore=[],movingType=''){const ids=Array.isArray(ignore)?ignore:[ignore],totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan;if(isFreeLine(movingType))return x>=-totalW&&y>=-totalH&&x+w<=totalW*2&&y+h<=totalH*2;if(isColumnGridType(movingType)&&!fitsWithinBay(x,y,w,h))return false;return x>=0&&y>=0&&x+w<=totalW&&y+h<=totalH&&!overlapsNotch(x,y,w,h)&&!state.pieces.some(p=>p.floor===f&&!ids.includes(p.id)&&!isDraftingType(p.type)&&!isFreeLine(p.type)&&x<p.x+p.w&&x+w>p.x&&y<p.y+p.h&&y+h>p.y)}
+function place(f,x,y){const t=types.find(v=>v.id===selectedType),d=typeSize(t),w=d.w,h=d.h,base=snapToGrid(x,y,w,h);let pos=base;if(!isDraftingType(t.id)){const snapped=snapToNeighbors(f,base.x,base.y,w,h,[]);if(canPlace(f,snapped.x,snapped.y,w,h,[],t.id))pos=snapped}x=pos.x;y=pos.y;if(!canPlace(f,x,y,w,h,[],t.id)){toast(isColumnGridType(t.id)&&!fitsWithinBay(x,y,w,h)?'柱・梁をまたぐ位置には配置できません':'ここには配置できません');return}snap();const created={id:crypto.randomUUID(),groupId:null,type:t.id,floor:f,x,y,w,h,rotated:false};state.pieces.push(created);selectedPiece=created.id;persist();renderFloors();renderSelection()}
 const canPlaceBase=canPlace;
 canPlace=function(f,x,y,w,h,ignore=[],movingType=''){if(isFreeFrame(movingType)){const totalW=state.cols*state.colSpan,totalH=state.rows*state.rowSpan;return x>=-totalW&&y>=-totalH&&x+w<=totalW*2&&y+h<=totalH*2}return canPlaceBase(f,x,y,w,h,ignore,movingType)};
 const placeBase=place;
