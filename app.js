@@ -83,28 +83,29 @@ canPlace=function(f,x,y,w,h,ignore=[],movingType=''){if(isFreeFrame(movingType))
 const placeBase=place;
 place=function(f,x,y){if(selectedType!=='free-line'&&selectedType!=='free-frame')return placeBase(f,x,y);const t=types.find(v=>v.id===selectedType),d=typeSize(t),totalW=gridW(),totalH=gridH();x=Math.max(-totalW,Math.min(Math.round(x*2)/2,totalW*2-d.w));y=Math.max(-totalH,Math.min(Math.round(y*2)/2,totalH*2-d.h));snap();const p={id:crypto.randomUUID(),groupId:null,type:t.id,floor:f,x,y,w:d.w,h:d.h,angle:0,rotated:false};state.pieces.push(p);selectedPiece=p.id;persist();renderFloors();renderSelection();toast(`${t.name}を配置しました`)};
 function bindGrid(){document.querySelectorAll('.grid').forEach(g=>{
- g.onmousedown=e=>{
+ g.onpointerdown=e=>{
   if(e.button!==0)return;
   const rect=g.getBoundingClientRect(),snap05=n=>Math.floor(n*2)/2,x=snap05((e.clientX-rect.left)/rect.width*gridW()),y=snap05((e.clientY-rect.top)/rect.height*gridH()),hit=e.target.closest('.piece'),isResize=!!e.target.closest('.resize-handle');
-  if(!hit){place(g.dataset.grid,x,y);return}
+  // タッチはスクロールや長押しと区別するため、短いタップに限って配置する
+  if(!hit){if(e.pointerType==='touch'){const sx=e.clientX,sy=e.clientY,startedAt=Date.now(),finish=ev=>{window.removeEventListener('pointerup',finish);window.removeEventListener('pointercancel',finish);if(ev.type==='pointerup'&&Date.now()-startedAt<500&&Math.abs(ev.clientX-sx)<10&&Math.abs(ev.clientY-sy)<10)place(g.dataset.grid,x,y)};window.addEventListener('pointerup',finish);window.addEventListener('pointercancel',finish);return}place(g.dataset.grid,x,y);return}
   selectedPiece=hit.dataset.pid;renderFloors();renderSelection();
   const p=state.pieces.find(q=>q.id===selectedPiece),parts=linked(p),ids=parts.map(v=>v.id),startX=x,startY=y,origins=parts.map(v=>({p:v,x:v.x,y:v.y}));snap();
-  if(isResize){const move=ev=>{const px=snap05((ev.clientX-rect.left)/rect.width*gridW()),py=snap05((ev.clientY-rect.top)/rect.height*gridH()),nw=Math.max(.5,Math.round((px-p.x)*2)/2),nh=Math.max(.5,Math.round((py-p.y)*2)/2);if(parts.every(v=>canPlace(v.floor,v.x,v.y,nw,nh,ids,v.type))){parts.forEach(v=>{v.w=nw;v.h=nh});renderFloors();renderSelection()}};const up=()=>{persist();window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up)};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);return}
+  if(isResize){const move=ev=>{const px=snap05((ev.clientX-rect.left)/rect.width*gridW()),py=snap05((ev.clientY-rect.top)/rect.height*gridH()),nw=Math.max(.5,Math.round((px-p.x)*2)/2),nh=Math.max(.5,Math.round((py-p.y)*2)/2);if(parts.every(v=>canPlace(v.floor,v.x,v.y,nw,nh,ids,v.type))){parts.forEach(v=>{v.w=nw;v.h=nh});renderFloors();renderSelection()}};const up=()=>{persist();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);return}
   const move=ev=>{const nx=snap05((ev.clientX-rect.left)/rect.width*gridW()),ny=snap05((ev.clientY-rect.top)/rect.height*gridH()),dx=nx-startX,dy=ny-startY,
    build=useStructure=>origins.map(v=>{if(isDraftingType(v.p.type))return{v,x:v.x+dx,y:v.y+dy};let pos=snapToGrid(v.x+dx,v.y+dy,v.p.w,v.p.h);if(useStructure)pos=snapToStructure(pos.x,pos.y,v.p.w,v.p.h);return{v,x:pos.x,y:pos.y}}),
    fits=list=>list.every(t=>canPlace(t.v.p.floor,t.x,t.y,t.v.p.w,t.v.p.h,ids,t.v.p.type));
    let targets=build(true);if(!fits(targets))targets=build(false);
    if(fits(targets)){targets.forEach(t=>{t.v.p.x=t.x;t.v.p.y=t.y});renderFloors()}};
-  const up=()=>{persist();window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up)};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up)
+  const up=()=>{persist();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up)
  };
   g.oncontextmenu=e=>{e.preventDefault();const hit=e.target.closest('.piece'),rect=g.getBoundingClientRect(),x=Math.round((e.clientX-rect.left)/rect.width*gridW()*2)/2,y=Math.round((e.clientY-rect.top)/rect.height*gridH()*2)/2;showContextMenu(e.clientX,e.clientY,hit?.dataset.pid||null,g.dataset.grid,x,y)}
 })}
-document.addEventListener('mousedown',e=>{const handle=e.target.closest('.drafting-free-line .resize-handle');if(!handle||e.button!==0)return;const pieceEl=handle.closest('.piece'),p=state.pieces.find(v=>v.id===pieceEl.dataset.pid),g=pieceEl.closest('.grid');if(!p||!g)return;e.preventDefault();e.stopImmediatePropagation();const rect=g.getBoundingClientRect(),totalW=gridW(),totalH=gridH(),angle=(p.angle??0)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle),startClientX=e.clientX,startClientY=e.clientY,startW=p.w,startX=p.x,startY=p.y;snap();const move=ev=>{const dx=(ev.clientX-startClientX)/rect.width*totalW,dy=(ev.clientY-startClientY)/rect.height*totalH,newW=Math.max(.5,Math.round((startW+dx*cos+dy*sin)*2)/2),change=newW-startW,newX=startX+change*(cos-1)/2,newY=startY+change*sin/2;if(canPlace(p.floor,newX,newY,newW,p.h,p.id,p.type)){p.x=newX;p.y=newY;p.w=newW;renderFloors();renderSelection()}};const up=()=>{persist();window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',up)};window.addEventListener('mousemove',move);window.addEventListener('mouseup',up)},true);
+document.addEventListener('pointerdown',e=>{const handle=e.target.closest('.drafting-free-line .resize-handle');if(!handle||e.button!==0)return;const pieceEl=handle.closest('.piece'),p=state.pieces.find(v=>v.id===pieceEl.dataset.pid),g=pieceEl.closest('.grid');if(!p||!g)return;e.preventDefault();e.stopImmediatePropagation();const rect=g.getBoundingClientRect(),totalW=gridW(),totalH=gridH(),angle=(p.angle??0)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle),startClientX=e.clientX,startClientY=e.clientY,startW=p.w,startX=p.x,startY=p.y;snap();const move=ev=>{const dx=(ev.clientX-startClientX)/rect.width*totalW,dy=(ev.clientY-startClientY)/rect.height*totalH,newW=Math.max(.5,Math.round((startW+dx*cos+dy*sin)*2)/2),change=newW-startW,newX=startX+change*(cos-1)/2,newY=startY+change*sin/2;if(canPlace(p.floor,newX,newY,newW,p.h,p.id,p.type)){p.x=newX;p.y=newY;p.w=newW;renderFloors();renderSelection()}};const up=()=>{persist();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up)},true);
 let copiedPiece=null;
 function deletePiece(id){const p=state.pieces.find(v=>v.id===id);if(!p)return;snap();const ids=linked(p).map(v=>v.id);state.pieces=state.pieces.filter(v=>!ids.includes(v.id));selectedPiece=null;persist();renderFloors();renderSelection()}
 function pastePiece(floor,x,y){if(!copiedPiece)return;const t=types.find(v=>v.id===copiedPiece.type);selectedType=copiedPiece.type;const base=snapToGrid(x,y,copiedPiece.w,copiedPiece.h);let pos=base;if(!isDraftingType(t.id)){const st=snapToStructure(base.x,base.y,copiedPiece.w,copiedPiece.h);if(canPlace(floor,st.x,st.y,copiedPiece.w,copiedPiece.h,[],t.id))pos=st;const snapped=snapToNeighbors(floor,pos.x,pos.y,copiedPiece.w,copiedPiece.h,[]);if(canPlace(floor,snapped.x,snapped.y,copiedPiece.w,copiedPiece.h,[],t.id))pos=snapped}if(!canPlace(floor,pos.x,pos.y,copiedPiece.w,copiedPiece.h,[],t.id))return toast('ここには貼り付けできません');snap();const created={...copiedPiece,id:crypto.randomUUID(),groupId:null,floor,x:pos.x,y:pos.y};state.pieces.push(created);selectedPiece=created.id;persist();renderFloors();renderSelection();toast('貼り付けました')}
 function showContextMenu(clientX,clientY,id,floor,x,y){const menu=$('#context-menu');menu.innerHTML=id?'<button data-action="copy">コピー</button><button data-action="delete">削除</button>':copiedPiece?'<button data-action="paste">貼り付け</button>':'<span>コピーした要素がありません</span>';menu.hidden=false;menu.style.left=clientX+'px';menu.style.top=clientY+'px';menu.onclick=e=>{const action=e.target.dataset.action;if(action==='copy'){const p=state.pieces.find(v=>v.id===id);copiedPiece=p?{...p,groupId:null}:null;toast('コピーしました')}if(action==='delete')deletePiece(id);if(action==='paste')pastePiece(floor,x,y);menu.hidden=true}}
-document.addEventListener('mousedown',e=>{const m=$('#context-menu');if(!m.contains(e.target))m.hidden=true});
+document.addEventListener('pointerdown',e=>{const m=$('#context-menu');if(!m.contains(e.target))m.hidden=true});
 function closeSizeEditor(){const box=$('#size-editor');box.hidden=true;box.innerHTML=''}
 function openSizeEditor(p,clientX,clientY){const box=$('#size-editor'),t=types.find(v=>v.id===p.type);
  box.innerHTML=`<label>幅（m）<input id="size-w" type="number" min="0.5" step="0.5" value="${p.w}"></label><label>奥行（m）<input id="size-h" type="number" min="0.5" step="0.5" value="${p.h}"></label><button id="size-apply">変更</button>`;
@@ -117,17 +118,31 @@ function openSizeEditor(p,clientX,clientY){const box=$('#size-editor'),t=types.f
  $('#size-apply').onclick=apply;
  box.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();apply()}else if(e.key==='Escape')closeSizeEditor()};
  const first=$('#size-w');first.focus();first.select()}
+// タッチでは長押しを右クリックの代わりにする（既存の contextmenu 処理をそのまま使う）
+let longPressTimer=null,longPressFrom=null;
+const cancelLongPress=()=>{clearTimeout(longPressTimer);longPressTimer=null;longPressFrom=null};
+document.addEventListener('pointerdown',e=>{
+ cancelLongPress();
+ if(e.pointerType!=='touch'||!e.target.closest('.grid'))return;
+ const target=e.target,x=e.clientX,y=e.clientY;longPressFrom={x,y};
+ longPressTimer=setTimeout(()=>{longPressTimer=null;target.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:x,clientY:y}))},550)
+},true);
+document.addEventListener('pointermove',e=>{if(longPressTimer&&longPressFrom&&(Math.abs(e.clientX-longPressFrom.x)>8||Math.abs(e.clientY-longPressFrom.y)>8))cancelLongPress()},true);
+document.addEventListener('pointerup',cancelLongPress,true);
+document.addEventListener('pointercancel',cancelLongPress,true);
 function pieceAtPoint(clientX,clientY){const g=[...document.querySelectorAll('.grid')].find(el=>{const r=el.getBoundingClientRect();return clientX>=r.left&&clientX<=r.right&&clientY>=r.top&&clientY<=r.bottom});if(!g)return null;const rect=g.getBoundingClientRect(),x=(clientX-rect.left)/rect.width*gridW(),y=(clientY-rect.top)/rect.height*gridH();return[...state.pieces].reverse().find(v=>v.floor===g.dataset.grid&&!isFreeLine(v.type)&&x>=v.x&&x<=v.x+v.w&&y>=v.y&&y<=v.y+v.h)||null}
 // 1回目のクリックで盤面を描き直すため dblclick は届かない。mousedown を捕捉段階で拾って二度押しを判定する
-let lastPieceClick={id:null,at:0};
-document.addEventListener('mousedown',e=>{
+let lastPieceClick={id:null,at:0,x:0,y:0};
+// ドラッグした直後の1タップを二度押しと誤判定しないよう、動かしたら記録を捨てる
+document.addEventListener('pointermove',e=>{if(e.buttons&&lastPieceClick.id&&(Math.abs(e.clientX-lastPieceClick.x)>8||Math.abs(e.clientY-lastPieceClick.y)>8))lastPieceClick={id:null,at:0,x:0,y:0}},true);
+document.addEventListener('pointerdown',e=>{
  const box=$('#size-editor');if(!box.hidden&&!box.contains(e.target))closeSizeEditor();
  if(e.button!==0||e.target.closest('.resize-handle'))return;
  const p=pieceAtPoint(e.clientX,e.clientY);
- if(!p){lastPieceClick={id:null,at:0};return}
+ if(!p){lastPieceClick={id:null,at:0,x:0,y:0};return}
  const now=Date.now();
- if(lastPieceClick.id===p.id&&now-lastPieceClick.at<400){lastPieceClick={id:null,at:0};e.preventDefault();e.stopImmediatePropagation();selectedPiece=p.id;renderFloors();renderSelection();openSizeEditor(p,e.clientX,e.clientY);return}
- lastPieceClick={id:p.id,at:now}
+ if(lastPieceClick.id===p.id&&now-lastPieceClick.at<500){lastPieceClick={id:null,at:0,x:0,y:0};e.preventDefault();e.stopImmediatePropagation();selectedPiece=p.id;renderFloors();renderSelection();openSizeEditor(p,e.clientX,e.clientY);return}
+ lastPieceClick={id:p.id,at:now,x:e.clientX,y:e.clientY}
 },true);
 function renderSelection(){const p=state.pieces.find(x=>x.id===selectedPiece),box=$('#selection');if(!p){box.className='empty';box.textContent='要素を選択してください';return}const t=types.find(x=>x.id===p.type),parts=linked(p),ids=parts.map(v=>v.id),draft=isDraftingType(p.type),detail=draft?`${p.w}m × ${p.h}m`:`${p.w}m × ${p.h}m・${p.w*p.h}㎡`;box.className='selection-card';box.innerHTML=`<b><span style="color:${t.color}">■</span> ${t.name}</b><span>${detail}</span><button id="rotate">↻ 90°回転</button><button id="remove">選択した要素を削除</button>`;$('#rotate').onclick=()=>{if(parts.every(v=>canPlace(v.floor,v.x,v.y,v.h,v.w,ids,v.type))){snap();parts.forEach(v=>{[v.w,v.h]=[v.h,v.w];v.rotated=!v.rotated});persist();renderFloors();renderSelection()}else toast('回転する余白がありません')};$('#remove').onclick=()=>{snap();state.pieces=state.pieces.filter(x=>!ids.includes(x.id));selectedPiece=null;persist();renderFloors();renderSelection()}}
 const renderSelectionRotatableBase=renderSelection;
