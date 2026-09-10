@@ -2,7 +2,7 @@ const learningChallenges=[
  {id:'hotel-business-single',title:'ビジネスホテル基準階（シングル中心）',level:'初級',brief:'シングルを中心に、セミダブル・身障者対応客室を組み合わせた効率的な二重廊下型の基準階を計画する。',grid:{rows:3,cols:6,rowSpan:6,colSpan:7},requirements:[
   {floor:'standard',type:'room-single',count:12,area:17.5,note:'1人用'},{floor:'standard',type:'room-semidouble',count:4,area:21,note:'1～2人用'},{floor:'standard',type:'room-accessible',count:2,area:35,note:'身障者・車いす対応'},{floor:'standard',type:'linen',count:1,area:10.5},{floor:'standard',type:'air-cond',count:1,area:6},{floor:'standard',type:'stairs-access',count:1,area:24.5,note:'利用者用'},{floor:'standard',type:'stairs-code',count:1,area:15,note:'管理用'},{floor:'standard',type:'ev-small',count:1,area:4,note:'管理用'},{floor:'standard',type:'ev-large',count:2,area:8.75,note:'利用者用'}
  ]},
- {id:'hotel-city-mix',title:'シティホテル基準階（標準客室ミックス）',level:'標準',brief:'ダブル・ツイン・トリプルを組み合わせ、二方向避難と客室動線を両立させる。',grid:{rows:3,cols:7,rowSpan:7,colSpan:6},requirements:[
+ {id:'hotel-city-mix',title:'シティホテル基準階（標準客室ミックス）',level:'標準',brief:'ダブル・ツイン・トリプルを組み合わせ、二方向避難と客室動線を両立させる。',grid:{rows:3,cols:6,rowSpan:7,colSpan:6},requirements:[
   {floor:'standard',type:'room-double',count:6,area:24.5},{floor:'standard',type:'room-twin',count:8,area:28},{floor:'standard',type:'room-triple',count:2,area:31.5},{floor:'standard',type:'linen',count:1,area:10.5},{floor:'standard',type:'air-cond',count:1,area:6},{floor:'standard',type:'stairs-access',count:1,area:24.5,note:'利用者用'},{floor:'standard',type:'stairs-code',count:1,area:15,note:'管理用'},{floor:'standard',type:'ev-small',count:1,area:4,note:'管理用'},{floor:'standard',type:'ev-large',count:2,area:8.75,note:'利用者用'}
  ]},
  {id:'hotel-resort-family',title:'リゾートホテル基準階（ファミリー中心）',level:'上級',brief:'ファミリー・ファミリー大・デラックスツインを中心に、大型客室の動線と避難経路を検討する。',grid:{rows:3,cols:7,rowSpan:7,colSpan:7},requirements:[
@@ -59,7 +59,7 @@ const learningChallenges=[
  {id:'hotel-grand-suite-wing',title:'グランドスイート棟L型基準階',level:'上級',brief:'スイートとジュニアスイートのみをL字棟に配置する、最上級グレードの基準階を計画する。',grid:{rows:3,cols:6,rowSpan:7,colSpan:6},notch:{corner:'nw',w:7,h:14},requirements:[
   {floor:'standard',type:'room-suite',count:3,area:66.5,note:'2～4人用'},{floor:'standard',type:'room-junior-suite',count:3,area:45.5,note:'2人用'},{floor:'standard',type:'linen',count:1,area:10.5},{floor:'standard',type:'air-cond',count:1,area:6},{floor:'standard',type:'stairs-access',count:1,area:24.5,note:'利用者用'},{floor:'standard',type:'stairs-code',count:1,area:15,note:'管理用'},{floor:'standard',type:'ev-small',count:1,area:4,note:'管理用'},{floor:'standard',type:'ev-large',count:2,area:8.75,note:'利用者用'}
  ]},
- {id:'hotel-family-standard-mix',title:'ファミリー・スタンダード混在型基準階',level:'標準',brief:'ファミリー・ダブル・ツインを組み合わせ、多様な宿泊人数に対応する基準階をまとめる。',grid:{rows:3,cols:5,rowSpan:7,colSpan:7},requirements:[
+ {id:'hotel-family-standard-mix',title:'ファミリー・スタンダード混在型基準階',level:'標準',brief:'ファミリー・ダブル・ツインを組み合わせ、多様な宿泊人数に対応する基準階をまとめる。',grid:{rows:3,cols:4,rowSpan:7,colSpan:7},requirements:[
   {floor:'standard',type:'room-family',count:4,area:38.5,note:'3～4人用'},{floor:'standard',type:'room-double',count:4,area:24.5,note:'2人用'},{floor:'standard',type:'room-twin',count:4,area:28,note:'2人用'},{floor:'standard',type:'linen',count:1,area:10.5},{floor:'standard',type:'air-cond',count:1,area:6},{floor:'standard',type:'stairs-access',count:1,area:24.5,note:'利用者用'},{floor:'standard',type:'stairs-code',count:1,area:15,note:'管理用'},{floor:'standard',type:'ev-small',count:1,area:4,note:'管理用'},{floor:'standard',type:'ev-large',count:2,area:8.75,note:'利用者用'}
  ]},
  {id:'hotel-accessible-focus',title:'バリアフリー重点型基準階',level:'標準',brief:'身障者・車いす対応客室を主体に、シングル・ダブルを組み合わせて計画する。',grid:{rows:3,cols:4,rowSpan:8,colSpan:7},requirements:[
@@ -104,7 +104,7 @@ function normalizeChallenge(ch){const g=ch.grid;
 function loadActiveChallenge(){try{const saved=JSON.parse(localStorage.getItem('esquisse_active_problem'));if(saved&&saved.requirements)return normalizeChallenge(saved)}catch(e){}return normalizeChallenge(cloneLearning(learningChallenges[0]))}
 function saveActiveChallenge(){localStorage.setItem('esquisse_active_problem',JSON.stringify(activeChallenge))}
 const hotelGridSpans=[[6,7],[7,6],[7,7],[8,7],[7,8],[6,8],[8,6],[9,6],[6,9]];
-const GROSS_AREA_FACTOR=1.75;
+const GROSS_AREA_FACTOR=1.65;
 function gridForRequirements(requirements){const netArea=requirements.reduce((n,r)=>n+r.area*r.count,0),targetGross=netArea*GROSS_AREA_FACTOR,[rowSpan,colSpan]=hotelGridSpans[Math.floor(Math.random()*hotelGridSpans.length)],rows=3,cols=Math.max(4,Math.round(targetGross/(rows*rowSpan*colSpan)));return{rows,cols,rowSpan,colSpan}}
 function generateLearningChallenge(){const choices=learningChallenges.filter(c=>c.id!==activeChallenge.id),base=cloneLearning(choices[Math.floor(Math.random()*choices.length)]||learningChallenges[0]),variation=Math.floor(Math.random()*900)+100;base.id=`${base.id}-${Date.now()}`;base.title=`${base.title} 自動課題${variation}`;delete base.notch;const adjustable=base.requirements.filter(r=>guestRoomTypeIds.includes(r.type));if(adjustable.length){const req=adjustable[Math.floor(Math.random()*adjustable.length)];req.count+=2;req.note=(req.note?req.note+'・':'')+'自動生成による追加条件'}base.grid=gridForRequirements(base.requirements);return normalizeChallenge(base)}
 function learningTypeName(id){return types.find(t=>t.id===id)?.name||id}
