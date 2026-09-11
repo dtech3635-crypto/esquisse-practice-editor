@@ -109,15 +109,20 @@ function applyChallengeGrid(){state={version:6,...cloneLearning(activeChallenge.
 const hotelGridSpans=[[6,7],[7,6],[7,7],[8,7],[7,8],[6,8],[8,6],[9,6],[6,9]];
 const GROSS_AREA_FACTOR=1.65;
 // スパン割りごとに目標延床へ最も近いスパン数を求め、目標から10%以内のものから選ぶ
-function gridForRequirements(requirements){
+// cutBays はL型の欠き込みで失うスパン数。その分を見込んで大きさを決める
+const L_CUT_BAYS=2;
+function gridForRequirements(requirements,cutBays=0){
  const target=requirements.reduce((n,r)=>n+r.area*r.count,0)*GROSS_AREA_FACTOR,rows=3,options=[];
- for(const[rowSpan,colSpan]of hotelGridSpans){const depth=rows*rowSpan;let best=null;
-  for(let cols=3;cols<=12;cols++){const width=cols*colSpan;if(width<depth||width>depth*3)continue;
-   const diff=Math.abs(width*depth-target);if(!best||diff<best.diff)best={diff,grid:{rows,cols,rowSpan,colSpan}}}
+ for(const[rowSpan,colSpan]of hotelGridSpans){const depth=rows*rowSpan,usableOf=cols=>cols*colSpan*depth-cutBays*colSpan*rowSpan;let best=null;
+  for(let cols=cutBays?4:3;cols<=12;cols++){const width=cols*colSpan;if(width<depth||width>depth*3)continue;
+   const diff=Math.abs(usableOf(cols)-target);if(!best||diff<best.diff)best={diff,grid:{rows,cols,rowSpan,colSpan}}}
   if(best)options.push(best)}
  const close=options.filter(o=>o.diff<=target*0.1),pool=close.length?close:[options.reduce((a,b)=>b.diff<a.diff?b:a)];
  return pool[Math.floor(Math.random()*pool.length)].grid}
-function generateLearningChallenge(){const choices=learningChallenges.filter(c=>c.id!==activeChallenge.id),base=cloneLearning(choices[Math.floor(Math.random()*choices.length)]||learningChallenges[0]),variation=Math.floor(Math.random()*900)+100;base.id=`${base.id}-${Date.now()}`;base.title=`${base.title} 自動課題${variation}`;delete base.notch;const adjustable=base.requirements.filter(r=>guestRoomTypeIds.includes(r.type));if(adjustable.length){const req=adjustable[Math.floor(Math.random()*adjustable.length)];req.count+=2;req.note=(req.note?req.note+'・':'')+'自動生成による追加条件'}base.grid=gridForRequirements(base.requirements);return normalizeChallenge(base)}
+function generateLearningChallenge(){const choices=learningChallenges.filter(c=>c.id!==activeChallenge.id),base=cloneLearning(choices[Math.floor(Math.random()*choices.length)]||learningChallenges[0]),variation=Math.floor(Math.random()*900)+100;base.id=`${base.id}-${Date.now()}`;base.title=`${base.title} 自動課題${variation}`;const corner=base.notch?base.notch.corner:null;const adjustable=base.requirements.filter(r=>guestRoomTypeIds.includes(r.type));if(adjustable.length){const req=adjustable[Math.floor(Math.random()*adjustable.length)];req.count+=2;req.note=(req.note?req.note+'・':'')+'自動生成による追加条件'}base.grid=gridForRequirements(base.requirements,corner?L_CUT_BAYS:0);
+ // 元がL型の課題は外形もL型のままにする（欠き込みは桁行1スパン×梁間2スパン）
+ if(corner)base.notch={corner,w:base.grid.colSpan,h:L_CUT_BAYS*base.grid.rowSpan};else delete base.notch;
+ return normalizeChallenge(base)}
 function learningTypeName(id){return types.find(t=>t.id===id)?.name||id}
 function learningCenter(p){return{x:p.x+p.w/2,y:p.y+p.h/2}}
 function learningDistance(a,b){const ac=learningCenter(a),bc=learningCenter(b);return Math.abs(ac.x-bc.x)+Math.abs(ac.y-bc.y)}
